@@ -7,6 +7,8 @@
 
 <!-- Police -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+<!-- Favicon neutre (évite le 404) -->
+<link rel="icon" href="data:,">
 
 <style>
   :root{
@@ -54,7 +56,7 @@
     box-shadow:0 14px 30px rgba(46,91,183,.45), 0 4px 10px rgba(0,0,0,.35);
     transition:transform .16s ease, box-shadow .2s ease, opacity .3s ease;
   }
-  button:hover{ transform:translateY(-1px); box-shadow:0 18px 36px rgba(46,91,183,.5), 0 6px 14px rgba(0,0,0,.4);}
+  button:hover{ transform:translateY(-1px); box-shadow:0 18px 36px rgba(46,91,183,.5), 0 6px 14px rgba(0,0,0,.4); }
   button:active{ transform:translateY(0); }
   button.hidden{opacity:0; pointer-events:none;}
   .result{min-height:3.2em; margin-top:16px; font-weight:900; font-size:1.1rem; letter-spacing:.01em}
@@ -100,7 +102,8 @@
       <canvas id="fx" aria-hidden="true"></canvas>
       <div class="cursor" id="cursor" aria-hidden="true"></div>
 
-      <svg id="svgRoot" width="100%" height="calc(var(--size) * 1px)" viewBox="0 0 380 380" aria-label="Roue des gains">
+      <!-- NOTE: height via style (calc() n’est pas accepté en attribut SVG) -->
+      <svg id="svgRoot" width="100%" style="height: calc(var(--size) * 1px)" viewBox="0 0 380 380" aria-label="Roue des gains">
         <defs>
           <filter id="drop" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
@@ -136,8 +139,8 @@
     <div id="result" class="result" aria-live="polite" aria-atomic="true"></div>
     <div id="stats" class="stats"></div>
 
-    <!-- (Optionnel) MP3 gros gain – non utilisé -->
-    <audio id="bigWinAudio" src="./bigwin.mp3" preload="auto" crossorigin="anonymous"></audio>
+    <!-- Audio désactivé (évite 404). Décommente si tu ajoutes bigwin.mp3 à la racine. -->
+    <!-- <audio id="bigWinAudio" src="./bigwin.mp3" preload="auto" crossorigin="anonymous"></audio> -->
   </main>
 
 <script>
@@ -147,10 +150,7 @@ const gains = [
   "Un oreiller", "-30%", "Linge de lit", "-5%"
 ];
 
-/* ================== Probabilités utilisateur (normalisées) ==================
-   Matelas 1%, Linge 10%, Oreiller 5%, -30% 70%, -5% 0%
-   On normalise automatiquement pour que la somme fasse 100%.
-================================================================== */
+/* ================== Probabilités utilisateur (normalisées) ================== */
 const RAW_WEIGHTS = [
   { label: "Le Matelas", p: 0.005 },
   { label: "Linge de lit", p: 0.30 },
@@ -230,7 +230,6 @@ function fanfare(){
   shG.gain.exponentialRampToValueAtTime(0.0001,tS+0.5);
   sh.start(tS); sh.stop(tS+0.55);
 }
-function sadMelody(){ /* non utilisé ici */ }
 function isZeroPercentPrize(val){ return /^\s*[-+]?0%\s*$/.test(String(val).trim()); }
 
 /* ====== Bus master (compresseur) & tons ====== */
@@ -391,7 +390,7 @@ function pickIndexForPrizeSafe(prize) {
 }
 
 /* ================== Spin + audio ================== */
-const pointerAngle = -90;
+const pointerAngle = -90; // haut
 let spinning=false, currentRot=0, firstSpinDone=false;
 
 function playTickTrack(totalMs=4000){
@@ -429,10 +428,14 @@ function spin(){
 
   const segAngleDeg=360/SEG;
 
+  // 1) Tirage pondéré sûr
   let prize = weightedPickSafe();
+  // 2) Trouver une case correspondant au gain tiré (≠ -5%)
   const index = pickIndexForPrizeSafe(prize);
+  // 3) Synchroniser l'intitulé avec la case réellement visée
   prize = gains[index];
 
+  // Calcul de la rotation
   const centerDeg = -90 + index*segAngleDeg + segAngleDeg/2;
   const base = pointerAngle - centerDeg;
   const extra = 5 + Math.floor(Math.random()*2);
@@ -453,11 +456,13 @@ function spin(){
     resultEl.innerHTML = `<span class="pop">🎉 Vous avez gagné : ${formatGain(prize)}</span>`;
     spinning = false;
 
-    // (optionnel) si on veut aussi envoyer le gain :
-    if (window.__gate_user__) {
-      const payload = { ...window.__gate_user__, prize, tsPrize: new Date().toISOString() };
-      window.sendToGitHub?.(payload).catch(console.error);
-    }
+    // ===== Enregistrement CSV (1 ligne) si l'utilisateur s'est identifié
+    try{
+      if (window.__gate_user__) {
+        const { prenom, nom, magasin } = window.__gate_user__;
+        sendToGitHubRow({ prenom, nom, magasin, prize }).catch(console.error);
+      }
+    }catch(e){ console.error(e); }
   }, 4040);
 }
 
@@ -466,7 +471,7 @@ spinBtn.addEventListener('click', spin);
 selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
 </script>
 
-<!-- =====================  AJOUT : Fenêtre pop-up d'accès (avec envoi GitHub)  ===================== -->
+<!-- =====================  FENÊTRE POP-UP D'ACCÈS  ===================== -->
 <style>
   :root { --gate-ring:#2563eb; --gate-text:#e5e7eb; --gate-card:#111827; }
   body.gate-locked { overflow: hidden; }
@@ -516,30 +521,7 @@ selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
 </div>
 
 <script>
-/** =================== PARAMS GITHUB (⚠️ à renseigner) =================== **/
-const GH_OWNER  = "Literie-aura";        // ← ton compte GitHub (casse indifférente)
-const GH_REPO   = "roue-2";              // ← le dépôt de ta capture
-const GH_BRANCH = "main";                // ← on voit "main" dans la capture
-const GH_DIR    = "data/gate-submissions"; // ← le dossier où créer les fichiers (auto-créé)
-/** ============= API Pages Functions: /api/save-gate ================== **/
-async function sendToGitHub(payload) {
-  const resp = await fetch("https://save-gate-worker.thegomotors.workers.dev/api/save-gate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      owner: GH_OWNER, repo: GH_REPO, branch: GH_BRANCH, dir: GH_DIR, payload
-    }),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(()=> "");
-    throw new Error(txt || "Échec d’envoi");
-  }
-  return resp.json();
-}
-// exposer pour l’envoi du gain (optionnel)
-window.sendToGitHub = sendToGitHub;
-
-// Évite double init si le script est chargé deux fois
+// Pop-up d'accès (sans persistance inter-sessions)
 (function(){
   if (window.__gate_initialized__) return;
   window.__gate_initialized__ = true;
@@ -557,41 +539,51 @@ window.sendToGitHub = sendToGitHub;
   function lock(){ overlay.hidden = false; document.body.classList.add('gate-locked'); setTimeout(()=>document.getElementById('gatePrenom')?.focus(),0); }
   function unlock(data){ overlay.hidden = true; document.body.classList.remove('gate-locked'); document.dispatchEvent(new CustomEvent('GateFormSubmitted', { detail: data })); }
 
-  // afficher au chargement (comme avant)
   lock();
 
-  // ====== 🔗 NOUVEAU: on enregistre dans GitHub AVANT d’ouvrir l’accès
-  form.addEventListener('submit', async (e)=>{
+  form.addEventListener('submit', (e)=>{
     e.preventDefault();
     errorEl.textContent='';
-
     const prenom = (form.prenom.value||'').trim();
     const nom = (form.nom.value||'').trim();
     const magasin = (form.magasin.value||'').trim();
-    if(!prenom || !nom || !magasin){
-      errorEl.textContent='Merci de compléter tous les champs obligatoires.';
-      return;
-    }
-
-    const data = { prenom, nom, magasin, page: location.href, ua: navigator.userAgent, timestamp: new Date().toISOString() };
-    const btn = form.querySelector('button[type="submit"]');
-    const prev = btn.textContent; btn.disabled = true; btn.textContent = "Envoi…";
-
-    try {
-      await sendToGitHub(data);            // << commit dans ton repo
-      window.__gate_user__ = data;         // mémoire locale
-      unlock(data);                        // ouvre l’accès (comportement identique)
-    } catch (err) {
-      errorEl.textContent = "Impossible d’enregistrer la soumission (" + (err.message || "erreur") + ").";
-    } finally {
-      btn.disabled = false; btn.textContent = prev;
-    }
+    if(!prenom || !nom || !magasin){ errorEl.textContent='Merci de compléter tous les champs obligatoires.'; return; }
+    const data = { prenom, nom, magasin, timestamp: new Date().toISOString() };
+    window.__gate_user__ = data;
+    unlock(data);
   });
 
   resetBtn.addEventListener('click', ()=>{ form.reset(); errorEl.textContent=''; });
 })();
 </script>
-<!-- =====================  FIN AJOUT  ===================== -->
+
+<!-- =====================  ENVOI VERS CLOUDFLARE WORKER (CSV 1 ligne)  ===================== -->
+<script>
+/** ====== CONFIG GITHUB + API WORKER ====== **/
+const GH_OWNER  = "Literie-aura";
+const GH_REPO   = "roue-2";
+const GH_BRANCH = "main";
+const GH_DIR    = "data/gate-submissions";
+const API_URL   = "https://save-gate-worker.thegomotors.workers.dev/api/save-gate";
+
+/** Envoie exactement une ligne CSV: prenom,nom,magasin,prize */
+async function sendToGitHubRow({ prenom, nom, magasin, prize }) {
+  const resp = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      owner: GH_OWNER, repo: GH_REPO, branch: GH_BRANCH, dir: GH_DIR,
+      payload: { prenom, nom, magasin, prize }
+    })
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(()=> "");
+    throw new Error(txt || "Échec d’envoi");
+  }
+  return resp.json();
+}
+</script>
 
 </body>
 </html>
+
