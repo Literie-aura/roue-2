@@ -524,7 +524,7 @@ const GH_DIR    = "data/gate-submissions";
 
 /** ============= API Pages Functions: /api/save-gate ================== **/
 async function sendToGitHub(payload) {
-  const resp = await fetch("https://save-gate-worker.<TON-ID-CLOUDFLARE>.workers.dev/api/save-gate", {
+  const resp = await fetch("save-gate-worker.thegomotors.workers.dev", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
