@@ -131,7 +131,6 @@
 
     <div class="btns">
       <button id="spinBtn">CLIQUER ICI</button>
-      
     </div>
 
     <div id="result" class="result" aria-live="polite" aria-atomic="true"></div>
@@ -367,19 +366,17 @@ function burstAt(x,y,colors){
 /* ================== Tirage pondéré SÛR (jamais -5%) ================== */
 const NORM = s => String(s).trim().toLowerCase();
 function weightedPickSafe() {
-  // tirage en fonction de WEIGHTS (normalisés) ; interdit -5%
   for (let guard=0; guard<50; guard++) {
     const r = Math.random();
     let acc = 0;
     for (const {label, p} of WEIGHTS) {
       acc += p;
       if (r < acc) {
-        if (NORM(label) === NORM("-5%")) break; // interdit
+        if (NORM(label) === NORM("-5%")) break;
         return label;
       }
     }
   }
-  // fallback théorique si tout échoue
   return "-30%";
 }
 function pickIndexForPrizeSafe(prize) {
@@ -387,7 +384,6 @@ function pickIndexForPrizeSafe(prize) {
     .map((g,i)=> NORM(g)===NORM(prize) ? i : -1)
     .filter(i=>i!==-1);
   if (indices.length) return indices[Math.floor(Math.random()*indices.length)];
-  // si aucune case correspond, choisir n'importe quelle case ≠ -5%
   const safeIndices = gains
     .map((g,i)=> NORM(g)!==NORM("-5%") ? i : -1)
     .filter(i=>i!==-1);
@@ -395,7 +391,7 @@ function pickIndexForPrizeSafe(prize) {
 }
 
 /* ================== Spin + audio ================== */
-const pointerAngle = -90; // haut
+const pointerAngle = -90;
 let spinning=false, currentRot=0, firstSpinDone=false;
 
 function playTickTrack(totalMs=4000){
@@ -426,7 +422,6 @@ function spin(){
     firstSpinDone = true;
     spinBtn.classList.add('hidden');
     setTimeout(()=>{ spinBtn.style.display='none'; }, 320);
-    /* big win audio disabled */
   }
 
   resultEl.textContent='';
@@ -434,14 +429,10 @@ function spin(){
 
   const segAngleDeg=360/SEG;
 
-  // 1) Tirage pondéré sûr
   let prize = weightedPickSafe();
-  // 2) Trouver une case correspondant au gain tiré (toujours ≠ -5%)
   const index = pickIndexForPrizeSafe(prize);
-  // 3) Synchroniser l'intitulé avec la case réellement visée
   prize = gains[index];
 
-  // Calcul de la rotation
   const centerDeg = -90 + index*segAngleDeg + segAngleDeg/2;
   const base = pointerAngle - centerDeg;
   const extra = 5 + Math.floor(Math.random()*2);
@@ -458,22 +449,25 @@ function spin(){
 
   setTimeout(()=>{
     burstAt(bx, by, ['#2e5bb7','#ffffff','#e03636']);
-    fanfare(); // son basique
+    fanfare();
     resultEl.innerHTML = `<span class="pop">🎉 Vous avez gagné : ${formatGain(prize)}</span>`;
     spinning = false;
+
+    // (optionnel) si on veut aussi envoyer le gain :
+    if (window.__gate_user__) {
+      const payload = { ...window.__gate_user__, prize, tsPrize: new Date().toISOString() };
+      window.sendToGitHub?.(payload).catch(console.error);
+    }
   }, 4040);
 }
-
-
 
 /* ============ Bind UI ============ */
 spinBtn.addEventListener('click', spin);
 selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
 </script>
 
-<!-- =====================  AJOUT : Fenêtre pop‑up d'accès  ===================== -->
+<!-- =====================  AJOUT : Fenêtre pop-up d'accès (avec envoi GitHub)  ===================== -->
 <style>
-  /* Styles isolés pour la fenêtre d'identification */
   :root { --gate-ring:#2563eb; --gate-text:#e5e7eb; --gate-card:#111827; }
   body.gate-locked { overflow: hidden; }
   .gate-overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.65); backdrop-filter: blur(4px); z-index: 99999; padding: 24px; }
@@ -522,9 +516,33 @@ selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
 </div>
 
 <script>
-// Évite toute double initialisation si le script est inclus deux fois
+/** =================== PARAMS GITHUB (⚠️ à renseigner) =================== **/
+const GH_OWNER  = "TON_OWNER";                  // ex: "maliterie"
+const GH_REPO   = "TON_REPO";                   // ex: "maliterie-roue"
+const GH_BRANCH = "main";
+const GH_DIR    = "data/gate-submissions";
+
+/** ============= API Pages Functions: /api/save-gate ================== **/
+async function sendToGitHub(payload) {
+  const resp = await fetch("/api/save-gate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      owner: GH_OWNER, repo: GH_REPO, branch: GH_BRANCH, dir: GH_DIR, payload
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(()=> "");
+    throw new Error(txt || "Échec d’envoi");
+  }
+  return resp.json();
+}
+// exposer pour l’envoi du gain (optionnel)
+window.sendToGitHub = sendToGitHub;
+
+// Évite double init si le script est chargé deux fois
 (function(){
-  if (window.__gate_initialized__) return; // garde-fou contre le double démarrage
+  if (window.__gate_initialized__) return;
   window.__gate_initialized__ = true;
 
   const overlay = document.getElementById('gateOverlay');
@@ -532,7 +550,6 @@ selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
   const errorEl = document.getElementById('gateError');
   const resetBtn = document.getElementById('gateReset');
 
-  // API minimale pour la page (pas de persistance inter‑sessions)
   window.GateForm = {
     getUserInfo(){ return window.__gate_user__ || null; },
     clear(){ window.__gate_user__ = null; lock(); }
@@ -541,26 +558,41 @@ selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
   function lock(){ overlay.hidden = false; document.body.classList.add('gate-locked'); setTimeout(()=>document.getElementById('gatePrenom')?.focus(),0); }
   function unlock(data){ overlay.hidden = true; document.body.classList.remove('gate-locked'); document.dispatchEvent(new CustomEvent('GateFormSubmitted', { detail: data })); }
 
-  // Afficher UNE seule fois par chargement, et à CHAQUE rafraîchissement de la page.
-  // Pas de localStorage/sessionStorage pour ne rien mémoriser entre reloads.
+  // afficher au chargement (comme avant)
   lock();
 
-  form.addEventListener('submit', (e)=>{
+  // ====== 🔗 NOUVEAU: on enregistre dans GitHub AVANT d’ouvrir l’accès
+  form.addEventListener('submit', async (e)=>{
     e.preventDefault();
     errorEl.textContent='';
+
     const prenom = (form.prenom.value||'').trim();
     const nom = (form.nom.value||'').trim();
     const magasin = (form.magasin.value||'').trim();
-    if(!prenom || !nom || !magasin){ errorEl.textContent='Merci de compléter tous les champs obligatoires.'; return; }
-    const data = { prenom, nom, magasin, timestamp: new Date().toISOString() };
-    window.__gate_user__ = data; // disponible pour ce chargement uniquement
-    unlock(data);
+    if(!prenom || !nom || !magasin){
+      errorEl.textContent='Merci de compléter tous les champs obligatoires.';
+      return;
+    }
+
+    const data = { prenom, nom, magasin, page: location.href, ua: navigator.userAgent, timestamp: new Date().toISOString() };
+    const btn = form.querySelector('button[type="submit"]');
+    const prev = btn.textContent; btn.disabled = true; btn.textContent = "Envoi…";
+
+    try {
+      await sendToGitHub(data);            // << commit dans ton repo
+      window.__gate_user__ = data;         // mémoire locale
+      unlock(data);                        // ouvre l’accès (comportement identique)
+    } catch (err) {
+      errorEl.textContent = "Impossible d’enregistrer la soumission (" + (err.message || "erreur") + ").";
+    } finally {
+      btn.disabled = false; btn.textContent = prev;
+    }
   });
 
   resetBtn.addEventListener('click', ()=>{ form.reset(); errorEl.textContent=''; });
 })();
 </script>
-<!-- =====================  FIN AJOUT FENÊTRE POP‑UP  ===================== -->
+<!-- =====================  FIN AJOUT  ===================== -->
 
 </body>
 </html>
