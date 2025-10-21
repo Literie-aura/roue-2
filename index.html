@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Roue du bon sommeil – Maliterie</title>
+
+<!-- Police -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+
+<style>
+  :root{
+    --navy:#0f2733; --blue:#2e5bb7; --red:#e03636; --white:#ffffff;
+    --size: 380;
+    --spin-duration: 4s;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--white);
+    font-family:"Poppins",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    display:flex; flex-direction:column; align-items:center;
+    overflow-x:hidden;
+    background: url('https://media.admagazine.fr/photos/65846400cb76969786b9660c/16:9/w_2560%2Cc_limit/1433133399') center / cover no-repeat fixed;
+  }
+  header{ width:100%; padding:8px 0 0; position:relative; z-index:2; }
+  .hero-logo{ max-width:clamp(260px, 55vw, 520px); margin:0 auto; padding:0 3vw; }
+  .hero-logo img{ display:block; width:100%; height:auto; max-height:clamp(64px, 14vw, 110px); object-fit:contain; }
+  .game{
+    width:min(92vw, 560px); margin:20px auto; text-align:center;
+    background:rgba(13,32,42,.92);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:18px; padding:24px 20px 28px;
+    box-shadow:0 35px 80px rgba(0,0,0,.55),0 12px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter: blur(2px);
+  }
+  .game h1{margin:0 0 6px; font-size:1.6rem; font-weight:700}
+  .game p{margin:0 0 12px; color:rgba(255,255,255,.9); font-weight:500}
+  .stage{position:relative; width:calc(var(--size) * 1px); height:calc(var(--size) * 1px + 70px); margin:8px auto 0;}
+  .cursor{
+    position:absolute; top:-2px; left:50%; transform:translateX(-50%);
+    width:0; height:0; z-index:3;
+    border-left:14px solid transparent; border-right:14px solid transparent;
+    border-top:24px solid var(--red);
+    filter:drop-shadow(0 6px 10px rgba(0,0,0,.55));
+  }
+  #fx{position:absolute; inset:0; pointer-events:none; z-index:4}
+  .btns{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  button{
+    background:var(--blue); color:#fff; border:none;
+    padding:12px 18px; border-radius:12px; font-size:1rem; cursor:pointer;
+    font-weight:700; letter-spacing:.02em;
+    box-shadow:0 14px 30px rgba(46,91,183,.45), 0 4px 10px rgba(0,0,0,.35);
+    transition:transform .16s ease, box-shadow .2s ease, opacity .3s ease;
+  }
+  button:hover{ transform:translateY(-1px); box-shadow:0 18px 36px rgba(46,91,183,.5), 0 6px 14px rgba(0,0,0,.4);}
+  button:active{ transform:translateY(0); }
+  button.hidden{opacity:0; pointer-events:none;}
+  .result{min-height:3.2em; margin-top:16px; font-weight:900; font-size:1.1rem; letter-spacing:.01em}
+  .pop{
+    display:inline-block; padding:.55em 1em; background:rgba(15,39,51,.92);
+    color:#fff; border:2px solid rgba(255,255,255,.25); border-radius:14px;
+    box-shadow:0 14px 38px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+    text-shadow:0 0 8px rgba(255,255,255,.5);
+    animation:popIn .6s cubic-bezier(.2,1.2,.2,1) forwards; backdrop-filter: blur(6px);
+  }
+  @keyframes popIn{0%{transform:scale(.7) translateY(14px); opacity:0}70%{transform:scale(1.06) translateY(0); opacity:1}100%{transform:scale(1)}}
+  .wheel{transition: transform var(--spin-duration) cubic-bezier(.17,.86,.27,1.02); transform-origin:50% 50%;}
+  .stats{margin-top:10px; font-size:.95rem; color:#dfe6f2}
+  .stats code{ background:rgba(255,255,255,.06); padding:2px 6px; border-radius:6px;}
+  table{width:100%; margin-top:10px; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:12px; }
+  th,td{ padding:8px 10px; text-align:center; }
+  thead th{ background:#203446; color:#fff; }
+  tbody tr:nth-child(odd){ background:#13222c; }
+  tbody tr:nth-child(even){ background:#0f1a22; }
+  tbody td{ color:#e7effa; }
+</style>
+</head>
+
+<body>
+
+  <header>
+    <div class="hero-logo">
+      <img
+        src="https://www.maliterie.com/img/ma-literie-logo-17194172391.jpg"
+        alt="Maliterie – logo"
+        decoding="async"
+        loading="eager"
+        fetchpriority="high"
+      />
+    </div>
+  </header>
+
+  <main class="game">
+    <h1>Roue du bon sommeil</h1>
+    <p>On vous souhaite bonne chance.</p>
+
+    <div class="stage" id="stage">
+      <canvas id="fx" aria-hidden="true"></canvas>
+      <div class="cursor" id="cursor" aria-hidden="true"></div>
+
+      <svg id="svgRoot" width="100%" height="calc(var(--size) * 1px)" viewBox="0 0 380 380" aria-label="Roue des gains">
+        <defs>
+          <filter id="drop" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+            <feOffset dx="0" dy="8" result="off"/>
+            <feComponentTransfer><feFuncA type="linear" slope=".35"/></feComponentTransfer>
+            <feMerge><feMergeNode in="off"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="txtShadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#ffffff" flood-opacity="0.45"/>
+          </filter>
+          <radialGradient id="shine" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="rgba(255,255,255,.55)"/>
+            <stop offset="60%" stop-color="rgba(255,255,255,0)"/>
+          </radialGradient>
+          <radialGradient id="hubg" cx="40%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#dfe6f2"/>
+          </radialGradient>
+        </defs>
+
+        <g id="wheel" class="wheel" filter="url(#drop)"></g>
+
+        <circle cx="190" cy="190" r="175" fill="none" stroke="#ffffff" stroke-width="10"/>
+        <circle cx="190" cy="190" r="160" fill="url(#shine)" pointer-events="none"/>
+        <circle cx="190" cy="190" r="36" fill="url(#hubg)" stroke="#b8c2d6" stroke-width="3"/>
+      </svg>
+    </div>
+
+    <div class="btns">
+      <button id="spinBtn">CLIQUER ICI</button>
+      
+    </div>
+
+    <div id="result" class="result" aria-live="polite" aria-atomic="true"></div>
+    <div id="stats" class="stats"></div>
+
+    <!-- (Optionnel) MP3 gros gain – non utilisé -->
+    <audio id="bigWinAudio" src="./bigwin.mp3" preload="auto" crossorigin="anonymous"></audio>
+  </main>
+
+<script>
+/* ================== Données visuelles (8 cases) ================== */
+const gains = [
+  "Linge de lit", "-30%", "Le Matelas", "-5%",
+  "Un oreiller", "-30%", "Linge de lit", "-5%"
+];
+
+/* ================== Probabilités utilisateur (normalisées) ==================
+   Matelas 1%, Linge 10%, Oreiller 5%, -30% 70%, -5% 0%
+   On normalise automatiquement pour que la somme fasse 100%.
+================================================================== */
+const RAW_WEIGHTS = [
+  { label: "Le Matelas", p: 0.005 },
+  { label: "Linge de lit", p: 0.30 },
+  { label: "Un oreiller", p: 0.025 },
+  { label: "-30%",       p: 0.94 },
+  { label: "-5%",        p: 0.00 }
+];
+function normalizeWeights(ws){
+  const sum = ws.reduce((a,b)=>a + (b.p||0), 0);
+  return ws.map(x=> ({ label:x.label, p: sum>0 ? x.p/sum : 0 }));
+}
+const WEIGHTS = normalizeWeights(RAW_WEIGHTS);
+
+/* ================== Géométrie ================== */
+const SIZE=380, CX=190, CY=190, R_OUT=170, R_IN=56, R_TEXT=115;
+const SEG=gains.length, A=2*Math.PI/SEG;
+
+/* ================== DOM ================== */
+const wheelGroup=document.getElementById('wheel');
+const spinBtn=document.getElementById('spinBtn');
+const selfTestBtn=document.getElementById('selfTestBtn');
+const resultEl=document.getElementById('result');
+const statsEl=document.getElementById('stats');
+const cursor=document.getElementById('cursor');
+const stage=document.getElementById('stage');
+const fx=document.getElementById('fx');
+const ctx=fx.getContext('2d');
+const bigWinEl=document.getElementById('bigWinAudio');
+
+/* ================== Audio basique ================== */
+let audioCtx=null;
+function initAudio(){ if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } if(audioCtx.state==='suspended') audioCtx.resume(); }
+function blip(fs=650, fe=1150, d=0.035, v=0.16){
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(fs + Math.random()*60, t0);
+  o.frequency.exponentialRampToValueAtTime(fe + Math.random()*80, t0 + d*0.7);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(v, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t0); o.stop(t0 + d);
+}
+function drumRoll(duration=0.8){
+  if(!audioCtx) return;
+  const rate=44100, len=Math.floor(rate*duration);
+  const buf=audioCtx.createBuffer(1,len,rate), data=buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*0.6;
+  const src=audioCtx.createBufferSource(); src.buffer=buf;
+  const f=audioCtx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=300; f.Q.value=0.0001;
+  const g=audioCtx.createGain(); const now=audioCtx.currentTime;
+  g.gain.setValueAtTime(0.0001,now);
+  g.gain.exponentialRampToValueAtTime(0.35,now+duration*0.5);
+  g.gain.exponentialRampToValueAtTime(0.08,now+duration*0.95);
+  f.frequency.linearRampToValueAtTime(1200,now+duration*0.7);
+  src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+  src.start(now); src.stop(now+duration);
+}
+function fanfare(){
+  if(!audioCtx) return;
+  const t=audioCtx.currentTime, chords=[[392,523,659],[440,587,740],[523,659,880]];
+  chords.forEach((ch,i)=>ch.forEach(freq=>{
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='triangle'; o.frequency.value=freq; g.gain.value=0.0001;
+    g.gain.exponentialRampToValueAtTime(0.35, t+i*0.35+0.02);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t+i*0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+i*0.35+0.42);
+    o.stop(t+i*0.35+0.45);
+  }));
+  const sh=audioCtx.createOscillator(), shG=audioCtx.createGain(), tS=t+chords.length*0.35;
+  sh.type='sine'; sh.frequency.setValueAtTime(1760,tS); shG.gain.setValueAtTime(0.18,tS);
+  sh.connect(shG); shG.connect(audioCtx.destination);
+  sh.frequency.exponentialRampToValueAtTime(3520,tS+0.5);
+  shG.gain.exponentialRampToValueAtTime(0.0001,tS+0.5);
+  sh.start(tS); sh.stop(tS+0.55);
+}
+function sadMelody(){ /* non utilisé ici */ }
+function isZeroPercentPrize(val){ return /^\s*[-+]?0%\s*$/.test(String(val).trim()); }
+
+/* ====== Bus master (compresseur) & tons ====== */
+let masterBus = null;
+function getMasterBus(){
+  if(!audioCtx) return null;
+  if(masterBus) return masterBus;
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.value = -12; comp.knee.value = 20; comp.ratio.value = 8;
+  comp.attack.value = 0.003; comp.release.value = 0.15;
+  const masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.9;
+  comp.connect(masterGain); masterGain.connect(audioCtx.destination);
+  masterBus = { comp, masterGain }; return masterBus;
+}
+function playTone(freq, t, dur, {type='triangle', vol=1, a=0.01, d=0.08, s=0.7, r=0.2}={}){
+  if(!audioCtx) return;
+  const bus=getMasterBus(); if(!bus) return;
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t+a);
+  g.gain.exponentialRampToValueAtTime(vol*s, t+a+d);
+  g.gain.setValueAtTime(vol*s, t+Math.max(0, dur-r));
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(bus.comp);
+  [0.16,0.30].forEach(delayTime=>{
+    const delay=audioCtx.createDelay(); delay.delayTime.value=delayTime;
+    const dg=audioCtx.createGain(); dg.gain.value=vol*0.25;
+    g.connect(delay); delay.connect(dg); dg.connect(bus.comp);
+  });
+  o.start(t); o.stop(t+dur+0.03);
+}
+function bell(t, vol=0.7){
+  if(!audioCtx) return;
+  const bus=getMasterBus(); if(!bus) return;
+  const len=audioCtx.sampleRate*0.22;
+  const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*Math.exp(-i/2800);
+  const src=audioCtx.createBufferSource(); src.buffer=buf;
+  const hp=audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2500;
+  const bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=8000; bp.Q.value=7;
+  const g=audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.18);
+  src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(bus.comp);
+  src.start(t); src.stop(t+0.22);
+  const o=audioCtx.createOscillator(), og=audioCtx.createGain();
+  o.type='sine'; o.frequency.setValueAtTime(1760, t);
+  og.gain.setValueAtTime(0.0001, t);
+  og.gain.exponentialRampToValueAtTime(vol*0.7, t+0.01);
+  og.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+  o.connect(og); og.connect(bus.comp);
+  o.start(t); o.stop(t+0.14);
+}
+
+/* ================== SVG helpers ================== */
+function polar(r,a){return [CX+r*Math.cos(a),CY+r*Math.sin(a)]}
+function makeDonutSlice(i){
+  const a0=-Math.PI/2+i*A,a1=a0+A;
+  const [x0o,y0o]=polar(R_OUT,a0),[x1o,y1o]=polar(R_OUT,a1);
+  const [x0i,y0i]=polar(R_IN,a1), [x1i,y1i]=polar(R_IN,a0);
+  const largeArc=A>Math.PI?1:0;
+  return `M${x0o} ${y0o}A${R_OUT} ${R_OUT} 0 ${largeArc} 1 ${x1o} ${y1o}L${x0i} ${y0i}A${R_IN} ${R_IN} 0 ${largeArc} 0 ${x1i} ${y1i}Z`;
+}
+function addLabel(group,i,text){
+  const mid=-Math.PI/2+(i+0.5)*A;
+  const [tx,ty]=polar(R_TEXT,mid);
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('transform',`translate(${tx},${ty})`);
+  const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.setAttribute('text-anchor','middle');
+  t.setAttribute('dominant-baseline','middle');
+  t.setAttribute('fill','#0f2733');
+  t.setAttribute('font-size','14');
+  t.setAttribute('font-weight','800');
+  t.setAttribute('filter','url(#txtShadow)');
+  const lines=wrapText(text,16);
+  const lh=16; const startY=-((lines.length-1)*lh)/2;
+  lines.forEach((line,idx)=>{
+    const tsp=document.createElementNS('http://www.w3.org/2000/svg','tspan');
+    tsp.setAttribute('x','0'); tsp.setAttribute('y', String(startY+idx*lh));
+    tsp.textContent=line; t.appendChild(tsp);
+  });
+  g.appendChild(t); group.appendChild(g);
+}
+function wrapText(str,max){
+  const words=str.split(/\s+/); const lines=[]; let cur='';
+  words.forEach(w=>{
+    const test=(cur?cur+' ':'')+w;
+    if(test.length<=max) cur=test;
+    else { if(cur) lines.push(cur); cur=w; }
+  });
+  if(cur) lines.push(cur);
+  return lines;
+}
+
+/* ================== Construit la roue ================== */
+for(let i=0;i<SEG;i++){
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', makeDonutSlice(i));
+  path.setAttribute('fill', i%2===0 ? '#e9eef9' : '#dbe4f5');
+  path.setAttribute('stroke', '#ffffff'); path.setAttribute('stroke-width','1');
+  wheelGroup.appendChild(path);
+  addLabel(wheelGroup, i, gains[i]);
+}
+
+/* ================== Confettis ================== */
+function resizeFx(){fx.width=stage.clientWidth;fx.height=stage.clientHeight;}
+window.addEventListener('resize',resizeFx); resizeFx();
+
+function burstAt(x,y,colors){
+  const parts=[]; for(let i=0;i<120;i++){
+    const a=Math.random()*Math.PI*2, s=4+Math.random()*5;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,g:0.16+Math.random()*0.25,life:55+Math.random()*30,size:3+Math.random()*4,color:colors[Math.floor(Math.random()*colors.length)],rot:Math.random()*Math.PI*2,vr:(Math.random()-.5)*0.3});
+  }
+  let f=0;(function tick(){
+    ctx.clearRect(0,0,fx.width,fx.height); f++;
+    parts.forEach(p=>{
+      p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.life--;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha=Math.max(p.life/85,0); ctx.fillStyle=p.color;
+      ctx.fillRect(-p.size/2,-p.size/2,p.size*1.6,p.size);
+      ctx.restore();
+    });
+    if(f<120) requestAnimationFrame(tick); else ctx.clearRect(0,0,fx.width,fx.height);
+  })();
+}
+
+/* ================== Tirage pondéré SÛR (jamais -5%) ================== */
+const NORM = s => String(s).trim().toLowerCase();
+function weightedPickSafe() {
+  // tirage en fonction de WEIGHTS (normalisés) ; interdit -5%
+  for (let guard=0; guard<50; guard++) {
+    const r = Math.random();
+    let acc = 0;
+    for (const {label, p} of WEIGHTS) {
+      acc += p;
+      if (r < acc) {
+        if (NORM(label) === NORM("-5%")) break; // interdit
+        return label;
+      }
+    }
+  }
+  // fallback théorique si tout échoue
+  return "-30%";
+}
+function pickIndexForPrizeSafe(prize) {
+  const indices = gains
+    .map((g,i)=> NORM(g)===NORM(prize) ? i : -1)
+    .filter(i=>i!==-1);
+  if (indices.length) return indices[Math.floor(Math.random()*indices.length)];
+  // si aucune case correspond, choisir n'importe quelle case ≠ -5%
+  const safeIndices = gains
+    .map((g,i)=> NORM(g)!==NORM("-5%") ? i : -1)
+    .filter(i=>i!==-1);
+  return safeIndices.length ? safeIndices[Math.floor(Math.random()*safeIndices.length)] : 0;
+}
+
+/* ================== Spin + audio ================== */
+const pointerAngle = -90; // haut
+let spinning=false, currentRot=0, firstSpinDone=false;
+
+function playTickTrack(totalMs=4000){
+  if(!audioCtx) return;
+  const start = performance.now();
+  (function loop(nextDelay){
+    setTimeout(()=>{
+      const elapsed = performance.now() - start;
+      const p = Math.min(elapsed/totalMs, 1);
+      const minI = 42, maxI = 220;
+      const interval = minI + (maxI - minI) * (p*p);
+      blip();
+      if(elapsed < totalMs) loop(interval);
+    }, nextDelay);
+  })(42);
+}
+function formatGain(g) {
+  if (/^[-+]?\d+%$/.test(g) || /^[-+]?\d+€$/.test(g)) return g + " de réduction";
+  return g;
+}
+
+function spin(){
+  if(spinning) return;
+  spinning = true;
+
+  initAudio();
+  if(!firstSpinDone){
+    firstSpinDone = true;
+    spinBtn.classList.add('hidden');
+    setTimeout(()=>{ spinBtn.style.display='none'; }, 320);
+    /* big win audio disabled */
+  }
+
+  resultEl.textContent='';
+  statsEl.textContent='';
+
+  const segAngleDeg=360/SEG;
+
+  // 1) Tirage pondéré sûr
+  let prize = weightedPickSafe();
+  // 2) Trouver une case correspondant au gain tiré (toujours ≠ -5%)
+  const index = pickIndexForPrizeSafe(prize);
+  // 3) Synchroniser l'intitulé avec la case réellement visée
+  prize = gains[index];
+
+  // Calcul de la rotation
+  const centerDeg = -90 + index*segAngleDeg + segAngleDeg/2;
+  const base = pointerAngle - centerDeg;
+  const extra = 5 + Math.floor(Math.random()*2);
+  const final = extra*360 + base;
+
+  currentRot += final;
+  wheelGroup.style.transform = `rotate(${currentRot}deg)`;
+
+  playTickTrack(4000);
+  setTimeout(()=>{ drumRoll(0.8); }, 4000 - 900);
+
+  const cRect=cursor.getBoundingClientRect(), sRect=stage.getBoundingClientRect();
+  const bx=cRect.left+cRect.width/2 - sRect.left, by=cRect.bottom - sRect.top + 6;
+
+  setTimeout(()=>{
+    burstAt(bx, by, ['#2e5bb7','#ffffff','#e03636']);
+    fanfare(); // son basique
+    resultEl.innerHTML = `<span class="pop">🎉 Vous avez gagné : ${formatGain(prize)}</span>`;
+    spinning = false;
+  }, 4040);
+}
+
+
+
+/* ============ Bind UI ============ */
+spinBtn.addEventListener('click', spin);
+selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
+</script>
+
+<!-- =====================  AJOUT : Fenêtre pop‑up d'accès  ===================== -->
+<style>
+  /* Styles isolés pour la fenêtre d'identification */
+  :root { --gate-ring:#2563eb; --gate-text:#e5e7eb; --gate-card:#111827; }
+  body.gate-locked { overflow: hidden; }
+  .gate-overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.65); backdrop-filter: blur(4px); z-index: 99999; padding: 24px; }
+  .gate-card { width: 100%; max-width: 560px; border-radius: 16px; overflow: hidden; background: var(--gate-card); color: var(--gate-text); box-shadow: 0 10px 40px rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.06); animation: gate-pop .2s ease-out; }
+  @keyframes gate-pop { from { transform: scale(.97); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  .gate-header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .gate-header h1 { margin: 0; font-size: 20px; }
+  .gate-body { padding: 20px 24px; display: grid; gap: 14px; }
+  .gate-row { display: grid; gap: 8px; }
+  .gate-row label { font-size: 14px; color: #9ca3af; }
+  .gate-row input { padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); background: #0f172a; color: var(--gate-text); outline: none; font-size: 15px; }
+  .gate-row input:focus { border-color: var(--gate-ring); box-shadow: 0 0 0 3px rgba(37,99,235,.25); }
+  .gate-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 0 24px 22px; }
+  .gate-btn { padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); cursor: pointer; font-weight: 600; }
+  .gate-btn.secondary { background: transparent; color: var(--gate-text); }
+  .gate-btn.primary { background: var(--gate-ring); color: white; border-color: var(--gate-ring); }
+  .gate-error { color: #ef4444; font-size: 13px; min-height: 18px; padding: 0 24px; }
+  .gate-footer { padding: 12px 24px; border-top: 1px solid rgba(255,255,255,.06); color: #9ca3af; font-size: 12px; text-align: center; }
+  .gate-overlay[hidden] { display: none !important; }
+</style>
+
+<div class="gate-overlay" id="gateOverlay" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <form class="gate-card" id="gateForm">
+    <div class="gate-header"><h1 id="gateTitle">Veuillez vous identifier</h1></div>
+    <div class="gate-body">
+      <div class="gate-row">
+        <label for="gatePrenom">Prénom *</label>
+        <input id="gatePrenom" name="prenom" type="text" autocomplete="given-name" required />
+      </div>
+      <div class="gate-row">
+        <label for="gateNom">Nom *</label>
+        <input id="gateNom" name="nom" type="text" autocomplete="family-name" required />
+      </div>
+      <div class="gate-row">
+        <label for="gateMagasin">Magasin *</label>
+        <input id="gateMagasin" name="magasin" type="text" placeholder="Magasin" required />
+      </div>
+    </div>
+    <p class="gate-error" id="gateError"></p>
+    <div class="gate-actions">
+      <button type="button" class="gate-btn secondary" id="gateReset">Effacer</button>
+      <button type="submit" class="gate-btn primary">Accéder</button>
+    </div>
+    <div class="gate-footer">Les champs marqués * sont obligatoires.</div>
+  </form>
+</div>
+
+<script>
+// Évite toute double initialisation si le script est inclus deux fois
+(function(){
+  if (window.__gate_initialized__) return; // garde-fou contre le double démarrage
+  window.__gate_initialized__ = true;
+
+  const overlay = document.getElementById('gateOverlay');
+  const form = document.getElementById('gateForm');
+  const errorEl = document.getElementById('gateError');
+  const resetBtn = document.getElementById('gateReset');
+
+  // API minimale pour la page (pas de persistance inter‑sessions)
+  window.GateForm = {
+    getUserInfo(){ return window.__gate_user__ || null; },
+    clear(){ window.__gate_user__ = null; lock(); }
+  };
+
+  function lock(){ overlay.hidden = false; document.body.classList.add('gate-locked'); setTimeout(()=>document.getElementById('gatePrenom')?.focus(),0); }
+  function unlock(data){ overlay.hidden = true; document.body.classList.remove('gate-locked'); document.dispatchEvent(new CustomEvent('GateFormSubmitted', { detail: data })); }
+
+  // Afficher UNE seule fois par chargement, et à CHAQUE rafraîchissement de la page.
+  // Pas de localStorage/sessionStorage pour ne rien mémoriser entre reloads.
+  lock();
+
+  form.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    errorEl.textContent='';
+    const prenom = (form.prenom.value||'').trim();
+    const nom = (form.nom.value||'').trim();
+    const magasin = (form.magasin.value||'').trim();
+    if(!prenom || !nom || !magasin){ errorEl.textContent='Merci de compléter tous les champs obligatoires.'; return; }
+    const data = { prenom, nom, magasin, timestamp: new Date().toISOString() };
+    window.__gate_user__ = data; // disponible pour ce chargement uniquement
+    unlock(data);
+  });
+
+  resetBtn.addEventListener('click', ()=>{ form.reset(); errorEl.textContent=''; });
+})();
+</script>
+<!-- =====================  FIN AJOUT FENÊTRE POP‑UP  ===================== -->
+
+</body>
+</html>
