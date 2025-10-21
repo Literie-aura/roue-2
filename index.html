@@ -517,11 +517,10 @@ selfTestBtn && selfTestBtn.addEventListener('click', ()=> selfTest(100000));
 
 <script>
 /** =================== PARAMS GITHUB (⚠️ à renseigner) =================== **/
-const GH_OWNER  = "literie-aura";                  // ex: "maliterie"
-const GH_REPO   = "literie-aura.github.io";                   // ex: "maliterie-roue"
-const GH_BRANCH = "main";
-const GH_DIR    = "data/gate-submissions";
-
+const GH_OWNER  = "Literie-aura";        // ← ton compte GitHub (casse indifférente)
+const GH_REPO   = "roue-2";              // ← le dépôt de ta capture
+const GH_BRANCH = "main";                // ← on voit "main" dans la capture
+const GH_DIR    = "data/gate-submissions"; // ← le dossier où créer les fichiers (auto-créé)
 /** ============= API Pages Functions: /api/save-gate ================== **/
 async function sendToGitHub(payload) {
   const resp = await fetch("https://save-gate-worker.thegomotors.workers.dev/api/save-gate", {
